@@ -1,5 +1,5 @@
 import { DataCollectorItem } from '../lib/DataCollector'
-import { bigNumberSum } from '../lib/utils'
+import { bigNumberSum, isAddress } from '../lib/utils'
 import { BigNumber } from 'bignumber.js'
 
 export class TokenAccount extends DataCollectorItem {
@@ -41,13 +41,23 @@ export class TokenAccount extends DataCollectorItem {
       },
 
       getTokenBalance: async params => {
-        const { contract } = params
+        const { contract, addresses } = params
+        if (!contract) return
+
+        let query = {}
+
+        if (addresses) query = this.fieldFilterParse('address', addresses)
+
         let contractData = await this.parent.getAddress(contract)
+
         contractData = contractData.data
         if (!contractData) return
-        let { totalSupply } = contractData
+
+        let { totalSupply, decimals } = contractData
         if (!totalSupply) return
-        let accounts = await this.find({ contract })
+
+        query.contract = contract
+        let accounts = await this.find(query)
         if (accounts) accounts = accounts.data
         if (!accounts) return
 
@@ -55,7 +65,7 @@ export class TokenAccount extends DataCollectorItem {
         totalSupply = new BigNumber(totalSupply)
         let balance = (accountsBalance) ? totalSupply.minus(accountsBalance) : totalSupply
 
-        const data = this.serialize({ balance, accountsBalance, totalSupply })
+        const data = this.serialize({ balance, accountsBalance, totalSupply, decimals })
         return { data }
       }
     }
